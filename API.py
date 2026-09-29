@@ -163,7 +163,8 @@ def update_messages(message):
         cursor = conn.cursor()
 
         cursor.execute("SELECT id from messages ORDER BY id DESC LIMIT 1;")
-        last_id_query = int(cursor.fetchall()[0][0])
+        result = cursor.fetchall()
+        last_id_query = int(result[0][0]) if result else 0
         sqlQuery = """
         INSERT INTO messages (id, content)
         VALUES (?, ?)

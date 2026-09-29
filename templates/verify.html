@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+
+{% block title %}Verify Slip - SecurePay{% endblock %}
+{% block page_title %}Verify Payment Slip{% endblock %}
+
+{% block content %}
+<style>
+    .verify-container {
+        display: flex;
+        gap: 30px;
+        flex-wrap: wrap;
+    }
+    .upload-section {
+        flex: 1;
+        min-width: 300px;
+    }
+    .preview-section {
+        flex: 1;
+        min-width: 300px;
+        text-align: center;
+        background: #f8f9fa;
+        border: 2px dashed var(--border);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        min-height: 300px;
+    }
+    #imagePreview {
+        max-width: 100%;
+        max-height: 400px;
+        display: none;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .drop-zone {
+        border: 2px dashed var(--primary);
+        padding: 30px;
+        text-align: center;
+        border-radius: 8px;
+        background: #f1f5f9;
+        cursor: pointer;
+        transition: background 0.3s;
+        margin-bottom: 15px;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+        background: #e2e8f0;
+    }
+    .drop-zone input[type="file"] {
+        display: none;
+    }
+    
+    .result-banner {
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .result-approved { background-color: #e8f8f5; color: var(--success); border: 2px solid var(--success); }
+    .result-rejected { background-color: #fdedec; color: var(--danger); border: 2px solid var(--danger); }
+    
+    .data-table { width: 100%; margin-bottom: 20px; }
+    .data-table th { width: 40%; background: #f1f2f6; }
+    
+    .collapsible {
+        background-color: #f1f2f6;
+        color: var(--dark);
+        cursor: pointer;
+        padding: 18px;
+        width: 100%;
+        border: none;
+        text-align: left;
+        outline: none;
+        font-size: 15px;
+        border-radius: 4px;
+        margin-bottom: 5px;
+    }
+    .active, .collapsible:hover { background-color: #dfe6e9; }
+    .collapsible-content {
+        padding: 0 18px;
+        display: none;
+        overflow: hidden;
+        background-color: white;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        margin-bottom: 15px;
+    }
+    pre { white-space: pre-wrap; font-family: monospace; padding: 15px 0; }
+</style>
+
+<div class="card">
+    <div class="verify-container">
+        <div class="upload-section">
+            <h3>Upload Payment Slip</h3>
+            <form action="{{ url_for('verify') }}" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label>Order ID (Required)</label>
+                    <select name="order_id" class="form-control" required>
+                        <option value="">-- Select an order --</option>
+                        {% if pending_orders %}
+                            {% for order in pending_orders %}
+                                <option value="{{ order.id }}">
+                                    #{{ order.id }} — LKR {{ order.amount }} | Acc: {{ order.account_no }}{% if order.customer_name %} | {{ order.customer_name }}{% endif %}
+                                </option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Upload New Slip Image</label>
+                    <div class="drop-zone" id="dropZone">
+                        <p>Drag & drop image here or click to select</p>
+                        <input type="file" name="slip_image" id="fileInput" accept="image/*">
+                    </div>
+                </div>
+                
+                <div class="form-group" style="text-align: center;">
+                    <strong>OR</strong>
+                </div>
+                
+                <div class="form-group">
+                    <label>Select Existing Slip</label>
+                    <select name="existing_slip" class="form-control" id="existingSlip">
+                        <option value="">-- Select a slip --</option>
+                        {% if slips %}
+                            {% for slip in slips %}
+                                <option value="{{ slip }}">{{ slip }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-block" style="margin-top: 20px; padding: 15px; font-size: 1.1rem;">Verify Payment</button>
+            </form>
+        </div>
+        
+        <div class="preview-section" id="previewContainer">
+            <p id="previewText">Image Preview will appear here</p>
+            <img id="imagePreview" alt="Slip Preview">
+        </div>
+    </div>
+</div>
+
+{% if result %}
+<div class="card">
+    <h2>Verification Results</h2>
+    
+    <div class="result-banner {% if result.status == 'approved' %}result-approved{% else %}result-rejected{% endif %}">
+        {% if result.status == 'approved' %}
+            ✅ APPROVED
+        {% else %}
+            ❌ NEEDS VERIFICATION: {{ result.reason }}
+        {% endif %}
+    </div>
+    
+    <h3>Extracted Data</h3>
+    <table class="data-table">
+        <tbody>
+            <tr><th>Transaction ID</th><td>{{ result.extracted_data.transaction_id | default('N/A') }}</td></tr>
+            <tr><th>Amount</th><td>{{ result.extracted_data.amount | default('N/A') }}</td></tr>
+            <tr><th>Account No</th><td>{{ result.extracted_data.account_no | default('N/A') }}</td></tr>
+            <tr><th>Date & Time</th><td>{{ result.extracted_data.date_time | default('N/A') }}</td></tr>
+            <tr><th>Sender Name</th><td>{{ result.extracted_data.sender_name | default('N/A') }}</td></tr>
+            <tr><th>Beneficiary Name</th><td>{{ result.extracted_data.beneficiary_name | default('N/A') }}</td></tr>
+            <tr><th>Remarks</th><td>{{ result.extracted_data.remarks | default('N/A') }}</td></tr>
+            <tr><th>Fee</th><td>{{ result.extracted_data.fee | default('N/A') }}</td></tr>
+            <tr><th>Total Amount</th><td>{{ result.extracted_data.total_amount | default('N/A') }}</td></tr>
+            <tr><th>Status on Slip</th><td>{{ result.extracted_data.status_on_slip | default('N/A') }}</td></tr>
+        </tbody>
+    </table>
+    
+    <p><strong>Slip Hash:</strong> <code>{{ result.slip_hash | default('N/A') }}</code></p>
+    
+    <button type="button" class="collapsible">View Raw OCR Text</button>
+    <div class="collapsible-content">
+        <pre>{{ result.raw_ocr | default('No OCR text available') }}</pre>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    // Drag and drop & File Preview Logic
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const imagePreview = document.getElementById('imagePreview');
+    const previewText = document.getElementById('previewText');
+    const existingSlip = document.getElementById('existingSlip');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            updatePreview(fileInput.files[0]);
+            existingSlip.value = ''; // clear select
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) {
+            updatePreview(fileInput.files[0]);
+            existingSlip.value = ''; // clear select
+        }
+    });
+
+    function updatePreview(file) {
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imagePreview.src = e.target.result;
+                imagePreview.style.display = 'block';
+                previewText.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // Collapsible Logic
+    var coll = document.getElementsByClassName("collapsible");
+    var i;
+    for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+            this.classList.toggle("active");
+            var content = this.nextElementSibling;
+            if (content.style.display === "block") {
+                content.style.display = "none";
+            } else {
+                content.style.display = "block";
+            }
+        });
+    }
+</script>
+{% endblock %}

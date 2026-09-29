@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Messages - SecurePay{% endblock %}
+{% block page_title %}SMS Messages Log{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col" style="flex: 2;">
+        <div class="card">
+            <h2>Received SMS Messages</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">ID</th>
+                            <th>Message Content</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for message in messages %}
+                        <tr>
+                            <td>{{ message.id }}</td>
+                            <td style="white-space: pre-wrap;">{{ message.content }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="2" style="text-align: center;">No messages found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col" style="flex: 1; min-width: 300px;">
+        <div class="card">
+            <h2>Add Mock Message</h2>
+            <p style="margin-bottom: 15px; color: #636e72; font-size: 0.9rem;">
+                Use this to simulate receiving an SMS notification from the bank.
+            </p>
+            <form action="{{ url_for('messages_page') }}" method="POST">
+                <div class="form-group">
+                    <label for="content">Message Content</label>
+                    <textarea name="content" id="content" class="form-control" rows="8" required placeholder="e.g. You have received LKR 5000.00 from JOHN DOE to A/C 123456789. Ref: TXN98765"></textarea>
+                </div>
+                <button type="submit" class="btn btn-success btn-block">Add SMS Message</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
